@@ -15,6 +15,7 @@ import (
 
 	"github.com/promotionos/analytics-service/internal/api"
 	"github.com/promotionos/analytics-service/internal/application"
+	"github.com/promotionos/analytics-service/internal/domain/model"
 	"github.com/promotionos/analytics-service/internal/infrastructure/event"
 	infrarepo "github.com/promotionos/analytics-service/internal/infrastructure/repository"
 	infraservice "github.com/promotionos/analytics-service/internal/infrastructure/service"
@@ -55,15 +56,14 @@ func main() {
 	liftCalc := infraservice.NewLiftCalculator()
 	burnTracker := infraservice.NewBudgetBurnTracker()
 
-	onExhausted := func(tenantID, campaignID string, metrics interface{}) error {
-		m := metrics.(*application.MetricsView)
+	onExhausted := func(tenantID, campaignID string, metrics *model.CampaignMetrics) error {
 		return publisher.PublishBudgetExhausted(
 			tenantID, campaignID,
-			m.TotalAmount, m.BurnedAmount, m.BudgetBurnPercent, m.RedemptionCount,
+			metrics.TotalAmount, metrics.BurnedAmount, metrics.BudgetBurnPercent, metrics.RedemptionCount,
 		)
 	}
 
-	svc := application.NewAnalyticsService(repo, liftCalc, burnTracker, nil)
+	svc := application.NewAnalyticsService(repo, liftCalc, burnTracker, onExhausted)
 
 	// Start event consumers
 	event.StartConsumers(redisClient, svc)
